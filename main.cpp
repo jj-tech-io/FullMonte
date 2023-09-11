@@ -283,13 +283,6 @@ std::vector<double> generateSequence(double start, double end, int numSamples, d
 }
 
 
-
-#include <future>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <condition_variable>
-
 std::mutex mtx; // For synchronizing output
 std::mutex task_mtx; // Mutex for task queue
 std::condition_variable cv; // Condition variable for the task queue
@@ -299,8 +292,6 @@ std::queue<std::function<void()>> tasks;
 bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
-    
-
     std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
     mtx.lock();
     WriteRowToCSV(outputFile, row);
@@ -324,21 +315,18 @@ void worker() {
             task = std::move(tasks.front());
             tasks.pop();
         }
-
         task();
     }
 }
 int main() {
     double step_size = 5;
     int numSamples = 7;
-
     //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
     //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
     //Bm = [0.01, 0.5, 1.0]
     //Bh = [0.75]
     //T = [0.25]
     //
-
     std::vector<double> CmValues = generateSequence(0.001, 0.5, 45, 3);
     std::vector<double> ChValues = generateSequence(0.001, 0.32, 45, 4);
     for (int i = 0; i < CmValues.size(); i++) {
