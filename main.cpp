@@ -204,7 +204,6 @@ std::vector<std::tuple<double, double, double>> CalculateReflectanceRow(double C
     // 380 to 780
     int step_size = 10;
     std::vector<double> wavelengths = generateArray(410, 420, 10, false);
-
     std::vector<double> reflectances(wavelengths.size());
 
     //total
@@ -237,10 +236,7 @@ std::vector<std::tuple<double, double, double>> CalculateReflectanceRow(double C
 
         index++;
         //std::cout << "Total: " << total[0] << ", " << total[1] << ", " << total[2] << std::endl;
-
     }
-
-
     return escaped;
 }
 std::vector<double> generateSequence(double start, double end, int numSamples, double root) {
@@ -262,7 +258,6 @@ std::vector<double> generateSequence(double start, double end, int numSamples, d
 std::mutex mtx; // For synchronizing output
 std::mutex task_mtx; // Mutex for task queue
 std::condition_variable cv; // Condition variable for the task queue
-
 std::queue<std::function<void()>> tasks;
 
 bool finished = false;
@@ -272,7 +267,7 @@ void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm,
     mtx.lock();
     for (auto row : rows_vector)
     {
-	    		WriteRowToCSV(outputFile, { cm, ch, bm, bh, t, std::get<0>(row), std::get<1>(row), std::get<2>(row) });
+	    		WriteRowToCSV(outputFile, {std::get<0>(row), std::get<1>(row), std::get<2>(row) });
 	}
 
     mtx.unlock();
@@ -300,15 +295,15 @@ void worker() {
 }
 int main() {
     double step_size = 5;
-    int numSamples = 7;
+    int numSamples = 1;
     //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
     //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
     //Bm = [0.01, 0.5, 1.0]
     //Bh = [0.75]
     //T = [0.25]
     //
-    std::vector<double> CmValues = generateSequence(0.001, 0.5, 45, 3);
-    std::vector<double> ChValues = generateSequence(0.001, 0.32, 45, 4);
+    std::vector<double> CmValues = generateSequence(0.001, 0.5, 1, 3);
+    std::vector<double> ChValues = generateSequence(0.001, 0.32, 1, 4);
     for (int i = 0; i < CmValues.size(); i++) {
 		std::cout << CmValues[i] << std::endl;
 	}
