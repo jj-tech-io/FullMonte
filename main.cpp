@@ -307,6 +307,7 @@ void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm,
     std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
     mtx.lock();
     WriteRowToCSV(outputFile, row);
+    std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << " \n" << std::endl;
     mtx.unlock();
     row.clear();
 
@@ -396,29 +397,7 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "elapsed time: " << elapsed.count() << " seconds" << std::endl;
-    WriteHeaderToCSV(outputFile);
-    for (auto cm : CmValues) {
-        for (auto ch : ChValues) {
-            for (auto bm : BmValues) {
-                for (auto bh : BhValues) {
-                    for (auto t : TValues) {
-                        std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
-                        WriteRowToCSV(outputFile, row);
-                        count++;
-                        if (count % 1000 == 0) {
-                            std::cout << "count: " << count << " of " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-                            std::cout << row[0] << ", " << row[1] << ", " << row[2] << ", " << row[3] << ", " << row[4] << ", " << row[5] << ", " << row[6] << ", " << row[7] << std::endl;
-                            auto now = std::chrono::high_resolution_clock::now();
-                            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
-                            std::cout << "Elapsed time: " << elapsed.count() << " s\n";
-                            //free up memory
-                            row.clear();
-                        }
-                    }
-                }
-            }
-        }
-    }
+
     outputFile.close();
     return 0;
 }
