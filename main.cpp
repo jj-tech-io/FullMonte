@@ -169,10 +169,22 @@ double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_m
         }
     }
     double total_reflection = 0.0;
+    double max = 0.0;
     for (int i = 0; i < Nbinsp1; i++) {
+        if (ReflBin[i] > max)
+        {
+            max = ReflBin[i]/Nphotons;
+        }
         // std::cout << "ReflBin[" << each << "] = " << ReflBin[each] << std::endl;
         total_reflection += ReflBin[i] / Nphotons;
+
     }
+    if (total_reflection > 1.0)
+    {
+	    	std :: cout << "total_reflection: " << total_reflection << std::endl;
+            std::cout << "max: " << max << std::endl;
+	}
+
     return total_reflection;
 }
 std::vector<float> generateDistribution(float minVal, float maxVal, int numSamples, double exponent = 1.0) {
@@ -200,7 +212,7 @@ std::vector<double> generateArray(double a, double b, double s, bool print_resul
 std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
     int step_size = 10;
-    std::vector<double> wavelengths = generateArray(380, 780, 10, false);
+    std::vector<double> wavelengths = generateArray(380, 780, step_size, false);
 
     std::vector<double> reflectances(wavelengths.size());
 
@@ -320,24 +332,24 @@ void worker() {
 }
 int main() {
     double step_size = 5;
-    int numSamples = 7;
+    int numSamples = 45;
     //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
     //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
     //Bm = [0.01, 0.5, 1.0]
     //Bh = [0.75]
     //T = [0.25]
     //
-    std::vector<double> CmValues = generateSequence(0.001, 0.5, 45, 3);
-    std::vector<double> ChValues = generateSequence(0.001, 0.32, 45, 4);
+    std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
+    std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
     for (int i = 0; i < CmValues.size(); i++) {
 		std::cout << CmValues[i] << std::endl;
 	}
     for (int i = 0; i < ChValues.size(); i++) {
         std::cout << ChValues[i] << std::endl;
     }
-    //std::vector<double> BmValues = generateSequence(0.01, 0.99, 7, 1);
-    //std::vector<double> BhValues = generateSequence(0.0, 1.0, 5, 1);
-    //std::vector<double> TValues = generateSequence(0.001, 0.25, 7, 1);
+    //std::vector<double> BmValues = generateSequence(0.000, 1.0, numSamples, 1);
+    //std::vector<double> BhValues = generateSequence(0.000, 1.0, numSamples, 1);
+    //std::vector<double> TValues = generateSequence(0.01, 0.25, numSamples, 1);
     //std::vector<float> CmValues2 = {0.00f, 0.002f, 0.0135f, 0.0425f, 0.1f, 0.185f, 0.32f};
     //std::vector<float> ChValues2 = {0.00f, 0.003f, 0.02f, 0.07f, 0.16f, 0.32f};
     std::vector<double> BmValues = {0.5};
@@ -403,33 +415,29 @@ int main() {
 
 
 
-    //WriteHeaderToCSV(outputFile);
-    //for (auto cm : CmValues) {
-    //    for (auto ch : ChValues) {
-    //        for (auto bm : BmValues) {
-    //            for (auto bh : BhValues) {
-    //                for (auto t : TValues) {
-    //                    std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
-    //                    WriteRowToCSV(outputFile, row);
-    //                    count++;
-    //                    if (count % 1000 == 0) {
-    //                        std::cout << "count: " << count << " of " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    //                        std::cout << row[0] << ", " << row[1] << ", " << row[2] << ", " << row[3] << ", " << row[4] << ", " << row[5] << ", " << row[6] << ", " << row[7] << std::endl;
-    //                        auto now = std::chrono::high_resolution_clock::now();
-    //                        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
-    //                        std::cout << "Elapsed time: " << elapsed.count() << " s\n";
-    //                        //free up memory
-    //                        row.clear();
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
-    ////end timer
-    //auto finish = std::chrono::high_resolution_clock::now();
-    //std::chrono::duration<double> elapsed = finish - start;
-    //std::cout << "Elapsed time: " << elapsed.count() << " s\n";
-    //outputFile.close();
+    WriteHeaderToCSV(outputFile);
+    for (auto cm : CmValues) {
+        for (auto ch : ChValues) {
+            for (auto bm : BmValues) {
+                for (auto bh : BhValues) {
+                    for (auto t : TValues) {
+                        std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
+                        WriteRowToCSV(outputFile, row);
+                        count++;
+                        if (count % 1000 == 0) {
+                            std::cout << "count: " << count << " of " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
+                            std::cout << row[0] << ", " << row[1] << ", " << row[2] << ", " << row[3] << ", " << row[4] << ", " << row[5] << ", " << row[6] << ", " << row[7] << std::endl;
+                            auto now = std::chrono::high_resolution_clock::now();
+                            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+                            std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+                            //free up memory
+                            row.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    outputFile.close();
     return 0;
 }
