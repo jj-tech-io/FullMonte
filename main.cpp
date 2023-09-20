@@ -264,35 +264,16 @@ bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
     std::vector<std::tuple<double, double, double>> rows_vector = CalculateReflectanceRow(cm, ch, bm, bh, t);
-    mtx.lock();
     for (auto row : rows_vector)
     {
-	    		WriteRowToCSV(outputFile, {std::get<0>(row), std::get<1>(row), std::get<2>(row) });
+        //print row 0 , 1, 2
+        std::cout << std::get<0>(row) << ", " << std::get<1>(row) << ", " << std::get<2>(row) << std::endl;
+	    WriteRowToCSV(outputFile, {std::get<0>(row), std::get<1>(row), std::get<2>(row) });
 	}
-
-    mtx.unlock();
 	rows_vector.clear();
 
 }
-void worker() {
-    while (true) {
-        std::function<void()> task;
 
-        {
-            std::unique_lock<std::mutex> lock(task_mtx);
-
-            cv.wait(lock, [] {
-                return !tasks.empty() || finished;
-                });
-
-            if (tasks.empty() && finished) return;
-
-            task = std::move(tasks.front());
-            tasks.pop();
-        }
-        task();
-    }
-}
 int main() {
     double step_size = 5;
     int numSamples = 1;
@@ -302,30 +283,25 @@ int main() {
     //Bh = [0.75]
     //T = [0.25]
     //
-    std::vector<double> CmValues = generateSequence(0.001, 0.5, 1, 3);
-    std::vector<double> ChValues = generateSequence(0.001, 0.32, 1, 4);
-    for (int i = 0; i < CmValues.size(); i++) {
-		std::cout << CmValues[i] << std::endl;
-	}
-    for (int i = 0; i < ChValues.size(); i++) {
-        std::cout << ChValues[i] << std::endl;
-    }
+    //std::vector<double> CmValues = generateSequence(0.001, 0.5, 1, 3);
+    //std::vector<double> ChValues = generateSequence(0.001, 0.32, 1, 4);
+
     //std::vector<double> BmValues = generateSequence(0.01, 0.99, 7, 1);
     //std::vector<double> BhValues = generateSequence(0.0, 1.0, 5, 1);
     //std::vector<double> TValues = generateSequence(0.001, 0.25, 7, 1);
-    //std::vector<float> CmValues2 = {0.00f, 0.002f, 0.0135f, 0.0425f, 0.1f, 0.185f, 0.32f};
-    //std::vector<float> ChValues2 = {0.00f, 0.003f, 0.02f, 0.07f, 0.16f, 0.32f};
+    std::vector<double> CmValues = {0.089};
+    std::vector<double> ChValues = {0.47};
     std::vector<double> BmValues = {0.5};
     std::vector<double> BhValues = {0.75};
     std::vector<double> TValues {0.25};
     ////append values to vectors
-    //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
-    //ChValues.insert(ChValues.end(), ChValues2.begin(), ChValues2.end());
-    //BmValues.insert(BmValues.end(), BmValues2.begin(), BmValues2.end());
-    //BhValues.insert(BhValues.end(), BhValues2.begin(), BhValues2.end());
-    //TValues.insert(TValues.end(), TValues2.begin(), TValues2.end());
+    //CmValues.insert(CmValues.end(), CmValues.begin(), CmValues.end());
+    //ChValues.insert(ChValues.end(), ChValues.begin(), ChValues.end());
+    //BmValues.insert(BmValues.end(), BmValues.begin(), BmValues.end());
+    //BhValues.insert(BhValues.end(), BhValues.begin(), BhValues.end());
+    //TValues.insert(TValues.end(), TValues.begin(), TValues.end());
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    std::string outputFilename = "output_test_multi.csv";
+    std::string outputFilename = "escaped.csv";
     std::ofstream outputFile(outputFilename);
 
     //start timer
@@ -334,41 +310,36 @@ int main() {
 
     WriteHeaderToCSV(outputFile);
 
-    const int numThreads = std::thread::hardware_concurrency();
-    std::vector<std::thread> workers;
-
-    for (int i = 0; i < numThreads; i++) {
-        workers.push_back(std::thread(worker));
-    }
-
     for (auto cm : CmValues) {
         for (auto ch : ChValues) {
             for (auto bm : BmValues) {
                 for (auto bh : BhValues) {
                     for (auto t : TValues) {
                         auto task = [&, cm, ch, bm, bh, t]() {
-                            ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
+                            std::vector<tuple<double, double, double>> escaped = CalculateReflectanceRow(cm, ch, bm, bh, t);
+                            double x = std::get<0>(escaped[0]);
+                            double y = std::get<1>(escaped[0]);
+                            double W = std::get<2>(escaped[0]);
+                            std::cout << "x: " << x << ", y: " << y << ", W: " << W << std::endl;
+                            //for row in escaped:
+                            for (auto row : escaped)
+                            {
+								std::cout << std::get<0>(row) << ", " << std::get<1>(row) << ", " << std::get<2>(row) << std::endl;
+								WriteRowToCSV(outputFile, { std::get<0>(row), std::get<1>(row), std::get<2>(row) });
+							}
+                            //print the length of the vector
+                            std::cout << "escaped size: " << escaped.size() << std::endl;
+                            std::cout << "escaped[0]: " << std::get<0>(escaped[0]) << ", " << std::get<1>(escaped[0]) << ", " << std::get<2>(escaped[0]) << std::endl;
                             };
 
-                        {
-                            std::unique_lock<std::mutex> lock(task_mtx);
-                            tasks.push(task);
-                            cv.notify_one();
-                        }
+                            //std::lock_guard<std::mutex> lock(task_mtx);
+                            //tasks.push(task);
+                            //cv.notify_one();
+                        task();  // Calling the lambda function
                     }
                 }
             }
         }
-    }
-
-    {
-        std::unique_lock<std::mutex> lock(task_mtx);
-        finished = true;
-        cv.notify_all();
-    }
-
-    for (auto& worker : workers) {
-        worker.join();
     }
 
     outputFile.close();
