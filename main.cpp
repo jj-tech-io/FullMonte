@@ -16,7 +16,7 @@
 #define nt 1.33
 
 
-double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_mus, double epidermis_thickness) {
+std::vector<std::tuple<double, double, double>> MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_mus, double epidermis_thickness) {
     int Nphotons = 10000;
     //double ReflBin[Nbinsp1];
 
@@ -30,6 +30,7 @@ double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_m
     //random seed
     std::vector<double> ReflBin(NR + 1, 0.0);
     srand(time(NULL));
+    std::vector<std::tuple<double, double, double>> escaped_photons;
     for (int i = 0; i < Nbinsp1; i++) {
         ReflBin[i] = 0;
     }
@@ -95,6 +96,8 @@ double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_m
                     ir = 0;
                 }
                 ReflBin[ir] = ReflBin[ir] + (W * external_reflectance);
+                escaped_photons.push_back(std::make_tuple(x, y, W * external_reflectance));
+
                 W = internal_reflectance * W;
                 uz = -uz;
                 x = (s - s1) * ux;
@@ -173,7 +176,7 @@ double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_m
         // std::cout << "ReflBin[" << each << "] = " << ReflBin[each] << std::endl;
         total_reflection += ReflBin[i] / Nphotons;
     }
-    return total_reflection;
+    return escaped_photons;
 }
 std::vector<float> generateDistribution(float minVal, float maxVal, int numSamples, double exponent = 1.0) {
     std::vector<float> values;
@@ -197,16 +200,17 @@ std::vector<double> generateArray(double a, double b, double s, bool print_resul
     return result;
 }
 
-std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
+std::vector<std::tuple<double, double, double>> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
     int step_size = 10;
-    std::vector<double> wavelengths = generateArray(380, 780, 10, false);
+    std::vector<double> wavelengths = generateArray(410, 420, 10, false);
 
     std::vector<double> reflectances(wavelengths.size());
 
     //total
     std::vector<double> total = { 0.0, 0.0, 0.0 };
     int index = 0;
+    std::vector<std::tuple<double, double, double>> escaped;
     for (int nm : wavelengths) {
         double alpha_base = 0.0244 + 8.53 * std::exp(-(nm - 154) / 66.2);
         double alpha_em = 6.6 * std::pow(10, 10) * std::pow(nm, -3.33);
@@ -229,43 +233,15 @@ std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, dou
         double scattering_epidermis = 14.74 * std::pow(nm, -0.22) + 2.22 * std::pow(10, 11) * std::pow(nm, -4.0);
         double scattering_dermis = 0.75 * scattering_epidermis;
         // Call MonteCarlo function here and store reflectance values
-        double reflectance = MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, T);
-        wavelengths[index] = nm;
-        reflectances[index] = reflectance;
-        double x =  xFit_1931(nm);
-        double y =  yFit_1931(nm);
-        double z =  zFit_1931(nm);
-        double XYZ [3] = {x, y, z};
+        escaped = MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, T);
 
-        total[0] += x*reflectance;
-        total[1] += y*reflectance;
-        total[2] += z*reflectance;
         index++;
         //std::cout << "Total: " << total[0] << ", " << total[1] << ", " << total[2] << std::endl;
 
     }
 
-    std::vector<double> sRGB0 = XYZ_to_sRGB(total, step_size);
-    std::vector<double> sRGB1 = Get_RGB(wavelengths, reflectances, step_size);
-    std::vector<double> sRGB2 = XYZ_to_sRGB(total, step_size);
-    std::vector<double> row;
-    row.push_back(Cm);
-    row.push_back(Ch);
-    row.push_back(Bm);
-    row.push_back(Bh);
-    row.push_back(T);
 
-    row.push_back(sRGB0[0]);
-    row.push_back(sRGB0[1]);
-    row.push_back(sRGB0[2]);
-
-    // row.insert(row.end(), sRGB.begin(), sRGB.end());
-    //free up memory
-    total.clear();
-    sRGB0.clear();
-    sRGB1.clear();
-    sRGB2.clear();
-    return row;
+    return escaped;
 }
 std::vector<double> generateSequence(double start, double end, int numSamples, double root) {
     std::vector<double> values;
@@ -292,11 +268,15 @@ std::queue<std::function<void()>> tasks;
 bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
-    std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
+    std::vector<std::tuple<double, double, double>> rows_vector = CalculateReflectanceRow(cm, ch, bm, bh, t);
     mtx.lock();
-    WriteRowToCSV(outputFile, row);
+    for (auto row : rows_vector)
+    {
+	    		WriteRowToCSV(outputFile, { cm, ch, bm, bh, t, std::get<0>(row), std::get<1>(row), std::get<2>(row) });
+	}
+
     mtx.unlock();
-    row.clear();
+	rows_vector.clear();
 
 }
 void worker() {
