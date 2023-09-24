@@ -308,62 +308,28 @@ void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm,
     std::map<int, double> spectral_reflectance = CalculateReflectanceRow(cm, ch, bm, bh, t);
 
     //write
-    outputFile << "nm" << "," << "reflectance" << "\n";
+    outputFile << "nm" << "," << "reflectance";
+
 	//for each
     for (auto it = spectral_reflectance.begin(); it != spectral_reflectance.end(); ++it) {
-        // Do something with it->first (key) and it->second (value)
-        //std::cout << "Wavelength: " << it->first << ", Reflectance: " << it->second << std::endl;
-        //write to csv nm, reflectance
-        outputFile << it->first << "," << it->second << "\n";
-
+        //outputFile << it->first << "," << it->second;
+        outputFile << it->first << "," << it->second;
     }
-    outputFile << std::endl;
 
-
-    std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << " \n" << std::endl;
     //write reflectance values to csv
 
 
 
 }
-void worker() {
-    while (true) {
-        std::function<void()> task;
 
-        {
-            std::unique_lock<std::mutex> lock(task_mtx);
-
-            cv.wait(lock, [] {
-                return !tasks.empty() || finished;
-                });
-
-            if (tasks.empty() && finished) return;
-
-            task = std::move(tasks.front());
-            tasks.pop();
-        }
-        task();
-    }
-}
 int main() {
-    double step_size = 5;
-    int numSamples = 45;
-    //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
-    //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
-    //Bm = [0.01, 0.5, 1.0]
-    //Bh = [0.75]
-    //T = [0.25]
-    //0.001	0.00221673	0.5	0.75	0.25	260.311	224.257	199.605
-	
-    //std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
-    //std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
+
     std::vector<double> CmValues = {0.001};
     std::vector<double> ChValues = { 0.00221673};
     std::vector<double> BmValues = {0.5};
     std::vector<double> BhValues = {0.75};
     std::vector<double> TValues {0.25};
-    ////append values to vectors
-    //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
+
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
     std::string outputFilename = "color_spaces.csv";
     std::ofstream outputFile(outputFilename);
@@ -372,42 +338,21 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
     int count = 0;
 
-    const int numThreads = std::thread::hardware_concurrency();
-    std::vector<std::thread> workers;
-
-    for (int i = 0; i < numThreads; i++) {
-        workers.push_back(std::thread(worker));
-    }
 
     for (auto cm : CmValues) {
         for (auto ch : ChValues) {
             for (auto bm : BmValues) {
                 for (auto bh : BhValues) {
                     for (auto t : TValues) {
-                        auto task = [&, cm, ch, bm, bh, t]() {
-                            ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
-                        };
 
-                        {
-                            std::unique_lock<std::mutex> lock(task_mtx);
-                            tasks.push(task);
-                            cv.notify_one();
-                        }
+                        ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
                     }
                 }
             }
         }
     }
 
-    {
-        std::unique_lock<std::mutex> lock(task_mtx);
-        finished = true;
-        cv.notify_all();
-    }
 
-    for (auto& worker : workers) {
-        worker.join();
-    }
 
     outputFile.close();
     auto end = std::chrono::high_resolution_clock::now();
