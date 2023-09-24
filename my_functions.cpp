@@ -175,22 +175,6 @@ void write_csv(const std::string filename, const std::vector<std::vector<double>
     }
     myFile.close();
 }
-void WriteRowToCSV(std::ofstream& file, const std::vector<double>& row) {
-    for (size_t i = 0; i < row.size(); ++i) {
-        file << row[i];
-        if (i < row.size() - 1) {
-            file << ",";
-        }
-    }
-    file << "\n";
-}
-void WriteHeaderToCSV(std::ofstream& file)
-{
-    //remove all white space and seperate by commas
-    //Cm,Ch,Bm,Bh,T,sR,sG,sB
-    file << "nm,r\n";
-    
-}
 
 std::pair<double, double> calculate_absorption_coefficient(double wavelength) {
     // Check if wavelength matches any of the known values

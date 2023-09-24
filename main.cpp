@@ -1,6 +1,8 @@
 #include "my_functions.h"
-
-
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <iostream>
 #define Nbins 1000
 #define Nbinsp1 1001
 #define PI 3.1415926
@@ -251,7 +253,7 @@ double CalculateNd(int stepSize, std::map<int, double> reflectance) {
 std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
     int step_size = 5;
-    std::vector<double> wavelengths = generateArray(340, 830, step_size, false);
+    std::vector<double> wavelengths = generateArray(380, 790, step_size, false);
     std::map<int, double> spectral_reflectance;
 
     //total
@@ -293,8 +295,6 @@ std::vector<double> generateSequence(double start, double end, int numSamples, d
     }
     return values;
 }
-
-
 std::mutex mtx; // For synchronizing output
 std::mutex task_mtx; // Mutex for task queue
 std::condition_variable cv; // Condition variable for the task queue
@@ -305,7 +305,7 @@ bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
     std::map<int, double> spectral_reflectance = CalculateReflectanceRow(cm, ch, bm, bh, t);
-    int stepSize = 5;  // Example value
+    int stepSize = 10;  // Example value
     double K = 1;     // For our case
 
     double Nd = CalculateNd(stepSize, spectral_reflectance);
@@ -314,9 +314,6 @@ void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm,
     double Y = CalculateY(stepSize, K, Nd, spectral_reflectance);
     double Z = CalculateZ(stepSize, K, Nd, spectral_reflectance);
 
-    std::cout << "X: " << X << "\n";
-    std::cout << "Y: " << Y << "\n";
-    std::cout << "Z: " << Z << "\n";
     /* 0.9531874 -0.0265906  0.0238731
 	-0.0382467  1.0288406  0.0094060
 	 0.0026068 -0.0030332  1.0892565
@@ -351,56 +348,97 @@ void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm,
     R = R * 255;
     G = G * 255;
     B = B * 255;
-
-    std::cout << "R: " << R << "\n";
-    std::cout << "G: " << G << "\n";
-    std::cout << "B: " << B << "\n";
-    outputFile << "nm" << "," << "reflectance";
-    std::cout << "nm" << "," << "reflectance" << std::endl;
-	//for each
-    for (auto it = spectral_reflectance.begin(); it != spectral_reflectance.end(); ++it) {
-        //outputFile << it->first << "," << it->second;
-        outputFile << it->first << "," << it->second;
-        std::cout << it->first << "," << it->second << std::endl;
-    }
-
     //write reflectance values to csv
-
+    //outputFile << "Cm,Ch,Bm,Bh,T,sR,sG,sB\n";
+    //outputFile << cm << "," << ch << "," << bm << "," << bh << "," << t << "," << R << "," << G << "," << B << "\n";
+    mtx.lock();
+    outputFile <<cm << "," << ch << "," << bm << "," << bh << "," << t << "," << R << "," << G << "," << B << "\n";
+    mtx.unlock();
+    //std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t <<  ", R: " << R << ", G: " << G << ", B: " << B << std::endl;
 
 
 }
 
+void worker() {
+    while (true) {
+        std::function<void()> task;
+
+        {
+            std::unique_lock<std::mutex> lock(task_mtx);
+
+            cv.wait(lock, [] {
+                return !tasks.empty() || finished;
+                });
+
+            if (tasks.empty() && finished) return;
+
+            task = std::move(tasks.front());
+            tasks.pop();
+        }
+        task();
+    }
+}
 int main() {
-
-    std::vector<double> CmValues = {0.001};
-    std::vector<double> ChValues = { 0.00221673};
-    std::vector<double> BmValues = {0.5};
-    std::vector<double> BhValues = {0.75};
-    std::vector<double> TValues {0.25};
-
+    double step_size = 5;
+    int numSamples = 45;
+    //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
+    //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
+    //Bm = [0.01, 0.5, 1.0]
+    //Bh = [0.75]
+    //T = [0.25]
+    std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
+    std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
+    std::vector<double> BmValues = { 0.5 };
+    std::vector<double> BhValues = { 0.75 };
+    std::vector<double> TValues{ 0.25 };
+    ////append values to vectors
+    //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    std::string outputFilename = "color_spaces.csv";
+    std::string outputFilename = "output_test_multi.csv";
     std::ofstream outputFile(outputFilename);
 
     //start timer
     auto start = std::chrono::high_resolution_clock::now();
     int count = 0;
 
+    outputFile << "Cm,Ch,Bm,Bh,T,sR,sG,sB\n";
+
+    const int numThreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> workers;
+
+    for (int i = 0; i < numThreads; i++) {
+        workers.push_back(std::thread(worker));
+    }
 
     for (auto cm : CmValues) {
         for (auto ch : ChValues) {
             for (auto bm : BmValues) {
                 for (auto bh : BhValues) {
                     for (auto t : TValues) {
+                        auto task = [&, cm, ch, bm, bh, t]() {
+                            ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
+                            };
 
-                        ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
+                        {
+                            std::unique_lock<std::mutex> lock(task_mtx);
+                            tasks.push(task);
+                            cv.notify_one();
+                        }
                     }
                 }
             }
         }
     }
 
+    {
+        std::unique_lock<std::mutex> lock(task_mtx);
+        finished = true;
+        cv.notify_all();
+    }
 
+    for (auto& worker : workers) {
+        worker.join();
+    }
 
     outputFile.close();
     auto end = std::chrono::high_resolution_clock::now();

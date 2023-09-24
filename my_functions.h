@@ -671,6 +671,6 @@ std::vector<double> XYZ_to_sRGB(std::vector<double> xyz, int step_size);
 std::vector<double> Get_RGB(std::vector<double> wavelengths, std::vector<double> reflectances, int step_size);
 
 void write_csv(const std::string filename, const std::vector<std::vector<double>>& data);
-void WriteRowToCSV(std::ofstream& file, const std::vector<double>& row);
-void WriteHeaderToCSV(std::ofstream& file);
+//void WriteRowToCSV(std::ofstream& file, const std::vector<double>& row);
+//void WriteHeaderToCSV(std::ofstream& file);
 std::pair<double, double> calculate_absorption_coefficient(double wavelength);
