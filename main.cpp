@@ -209,12 +209,12 @@ std::vector<double> generateArray(double a, double b, double s, bool print_resul
     return result;
 }
 
-std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
+std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
     int step_size = 10;
     std::vector<double> wavelengths = generateArray(380, 780, step_size, false);
-
-    std::vector<double> reflectances(wavelengths.size());
+    std::vector<double> reflectances;
+    std::map<int, double> spectral_reflectance;
 
     //total
     std::vector<double> total = { 0.0, 0.0, 0.0 };
@@ -243,7 +243,8 @@ std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, dou
         // Call MonteCarlo function here and store reflectance values
         double reflectance = MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, T);
         wavelengths[index] = nm;
-        reflectances[index] = reflectance;
+        reflectances.push_back(reflectance);
+        spectral_reflectance[nm] = reflectance;
         double x =  xFit_1931(nm);
         double y =  yFit_1931(nm);
         double z =  zFit_1931(nm);
@@ -277,7 +278,7 @@ std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, dou
     sRGB0.clear();
     sRGB1.clear();
     sRGB2.clear();
-    return row;
+    return spectral_reflectance;
 }
 std::vector<double> generateSequence(double start, double end, int numSamples, double root) {
     std::vector<double> values;
@@ -304,12 +305,25 @@ std::queue<std::function<void()>> tasks;
 bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
-    std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
-    mtx.lock();
-    WriteRowToCSV(outputFile, row);
+    std::map<int, double> spectral_reflectance = CalculateReflectanceRow(cm, ch, bm, bh, t);
+
+    //write
+    outputFile << "nm" << "," << "reflectance" << "\n";
+	//for each
+    for (auto it = spectral_reflectance.begin(); it != spectral_reflectance.end(); ++it) {
+        // Do something with it->first (key) and it->second (value)
+        //std::cout << "Wavelength: " << it->first << ", Reflectance: " << it->second << std::endl;
+        //write to csv nm, reflectance
+        outputFile << it->first << "," << it->second << "\n";
+
+    }
+    outputFile << std::endl;
+
+
     std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << " \n" << std::endl;
-    mtx.unlock();
-    row.clear();
+    //write reflectance values to csv
+
+
 
 }
 void worker() {
@@ -339,22 +353,24 @@ int main() {
     //Bm = [0.01, 0.5, 1.0]
     //Bh = [0.75]
     //T = [0.25]
-    std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
-    std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
+    //0.001	0.00221673	0.5	0.75	0.25	260.311	224.257	199.605
+	
+    //std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
+    //std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
+    std::vector<double> CmValues = {0.001};
+    std::vector<double> ChValues = { 0.00221673};
     std::vector<double> BmValues = {0.5};
     std::vector<double> BhValues = {0.75};
     std::vector<double> TValues {0.25};
     ////append values to vectors
     //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    std::string outputFilename = "output_test_multi.csv";
+    std::string outputFilename = "color_spaces.csv";
     std::ofstream outputFile(outputFilename);
 
     //start timer
     auto start = std::chrono::high_resolution_clock::now();
     int count = 0;
-
-    WriteHeaderToCSV(outputFile);
 
     const int numThreads = std::thread::hardware_concurrency();
     std::vector<std::thread> workers;

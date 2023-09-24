@@ -188,7 +188,7 @@ void WriteHeaderToCSV(std::ofstream& file)
 {
     //remove all white space and seperate by commas
     //Cm,Ch,Bm,Bh,T,sR,sG,sB
-    file << "Cm,Ch,Bm,Bh,T,sR,sG,sB\n";
+    file << "nm,r\n";
     
 }
 
