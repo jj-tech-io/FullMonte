@@ -201,7 +201,6 @@ std::pair<double, double> calculate_absorption_coefficient(double wavelength) {
             return std::make_pair(e_HbO2, e_Hb);
         }
     }
-
     // If no match found, calculate using raw coefficients
     int i = std::lower_bound(wavelengths, wavelengths + sizeof(wavelengths) / sizeof(wavelengths[0]), wavelength) - wavelengths;
     if (i == 0) {
@@ -210,16 +209,13 @@ std::pair<double, double> calculate_absorption_coefficient(double wavelength) {
     else if (i == sizeof(wavelengths) / sizeof(wavelengths[0])) {
         i = sizeof(wavelengths) / sizeof(wavelengths[0]) - 1;
     }
-
     // Linear interpolation for e_HbO2
     double x0 = wavelengths[i - 1], x1 = wavelengths[i];
     double y0_HbO2 = deoxy_data[i - 1], y1_HbO2 = deoxy_data[i];
     double e_HbO2 = y0_HbO2 + (y1_HbO2 - y0_HbO2) * (wavelength - x0) / (x1 - x0);
-
     // Linear interpolation for e_Hb
     double y0_Hb = oxy_data[i - 1], y1_Hb = oxy_data[i];
     double e_Hb = y0_Hb + (y1_Hb - y0_Hb) * (wavelength - x0) / (x1 - x0);
-
     return std::make_pair(e_HbO2, e_Hb);
 }
 

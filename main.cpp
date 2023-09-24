@@ -252,7 +252,6 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
     // 380 to 780
     int step_size = 5;
     std::vector<double> wavelengths = generateArray(340, 830, step_size, false);
-    std::vector<double> reflectances;
     std::map<int, double> spectral_reflectance;
 
     //total
@@ -262,9 +261,6 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
         double alpha_base = 0.0244 + 8.53 * std::exp(-(nm - 154) / 66.2);
         double alpha_em = 6.6 * std::pow(10, 10) * std::pow(nm, -3.33);
         double alpha_pm = 2.9 * std::pow(10, 14) * std::pow(nm, -4.75);
-        // Calculate alpha_oxy and alpha_deoxy using appropriate data source
-        // double alpha_oxy = oxy_hb[index].second;
-        // double alpha_deoxy = deoxy_hb[index].second;
         auto coefficients = calculate_absorption_coefficient(nm);
         double gammaOxy = coefficients.first;
         double gammaDeoxy = coefficients.second;
@@ -281,58 +277,20 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
         double scattering_dermis = 0.75 * scattering_epidermis;
         // Call MonteCarlo function here and store reflectance values
         double reflectance = MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, T);
-        wavelengths[index] = nm;
-        reflectances.push_back(reflectance);
         spectral_reflectance[nm] = reflectance;
-        double x =  xFit_1931(nm);
-        double y =  yFit_1931(nm);
-        double z =  zFit_1931(nm);
-
-
-        total[0] += x*reflectance;
-        total[1] += y*reflectance;
-        total[2] += z*reflectance;
         index++;
-        //std::cout << "Total: " << total[0] << ", " << total[1] << ", " << total[2] << std::endl;
-
     }
-
-
-
-    std::vector<double> sRGB0 = XYZ_to_sRGB(total, step_size);
-    std::vector<double> sRGB1 = Get_RGB(wavelengths, reflectances, step_size);
-    std::vector<double> sRGB2 = XYZ_to_sRGB(total, step_size);
-    std::vector<double> row;
-    row.push_back(Cm);
-    row.push_back(Ch);
-    row.push_back(Bm);
-    row.push_back(Bh);
-    row.push_back(T);
-
-    row.push_back(sRGB0[0]);
-    row.push_back(sRGB0[1]);
-    row.push_back(sRGB0[2]);
-
-    // row.insert(row.end(), sRGB.begin(), sRGB.end());
-    //free up memory
-    total.clear();
-    sRGB0.clear();
-    sRGB1.clear();
-    sRGB2.clear();
     return spectral_reflectance;
 }
 std::vector<double> generateSequence(double start, double end, int numSamples, double root) {
     std::vector<double> values;
-
     double startRootValue = std::pow(start, 1.0 / root);
     double endRootValue = std::pow(end, 1.0 / root);
     double delta = (endRootValue - startRootValue) / (numSamples - 1);
-
     for (int i = 0; i < numSamples; ++i) {
         double valRoot = startRootValue + delta * i;
         values.push_back(std::pow(valRoot, root));
     }
-
     return values;
 }
 
