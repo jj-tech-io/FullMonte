@@ -104,19 +104,19 @@ double gamma_correction(double C) {
 }
 
 std::vector<double> XYZ_to_sRGB(std::vector<double> xyz, int step_size) {
-    double x = xyz[0]/step_size;
-    double y = xyz[1]/step_size;
-    double z = xyz[2]/step_size;
+    double x = xyz[0];
+    double y = xyz[1];
+    double z = xyz[2];
 
-    std::vector<std::vector<double>> mat3x3 = {
+    std::vector<std::vector<double>> m_rgb_srgb = {
         {3.2406, -1.5372, -0.4986},
         {-0.9689, 1.8758, 0.0415},
         {0.0557, -0.204, 1.057}
     };
 
-    double r = x * mat3x3[0][0] + y * mat3x3[0][1] + z * mat3x3[0][2];
-    double g = x * mat3x3[1][0] + y * mat3x3[1][1] + z * mat3x3[1][2];
-    double b = x * mat3x3[2][0] + y * mat3x3[2][1] + z * mat3x3[2][2];
+    double r = x * m_rgb_srgb[0][0] + y * m_rgb_srgb[0][1] + z * m_rgb_srgb[0][2];
+    double g = x * m_rgb_srgb[1][0] + y * m_rgb_srgb[1][1] + z * m_rgb_srgb[1][2];
+    double b = x * m_rgb_srgb[2][0] + y * m_rgb_srgb[2][1] + z * m_rgb_srgb[2][2];
 
     r = gamma_correction(r) * 255.0;
     g = gamma_correction(g) * 255.0;

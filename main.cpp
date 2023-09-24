@@ -208,11 +208,50 @@ std::vector<double> generateArray(double a, double b, double s, bool print_resul
     }
     return result;
 }
+double CalculateX(int stepSize, double K, double Nd, std::map<int, double> reflectance) {
+    double sum = 0;
+    for (auto it = reflectance.begin(); it != reflectance.end(); ++it) {
+        double lambda = it->first;
+        double S = it->second;
+        sum += stepSize * S * xFit_1931(lambda);
+    }
+    return (K / Nd) * sum;
+}
+
+double CalculateY(int stepSize, double K, double Nd, std::map<int, double> reflectance) {
+    double sum = 0;
+    for (auto it = reflectance.begin(); it != reflectance.end(); ++it) {
+        double lambda = it->first;
+        double S = it->second;
+        sum += stepSize * S * yFit_1931(lambda);
+    }
+    return (K / Nd) * sum;
+}
+
+double CalculateZ(int stepSize, double K, double Nd, std::map<int, double> reflectance) {
+    double sum = 0;
+    for (auto it = reflectance.begin(); it != reflectance.end(); ++it) {
+        double lambda = it->first;
+        double S = it->second;
+        sum += stepSize * S * zFit_1931(lambda);
+    }
+    return (K / Nd) * sum;
+}
+
+double CalculateNd(int stepSize, std::map<int, double> reflectance) {
+    double sum = 0;
+    for (auto it = reflectance.begin(); it != reflectance.end(); ++it) {
+        double lambda = it->first;
+        sum += stepSize * yFit_1931(lambda);  // Use the yFit_1931 function here
+    }
+    return sum;
+}
+
 
 std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
-    int step_size = 10;
-    std::vector<double> wavelengths = generateArray(380, 780, step_size, false);
+    int step_size = 5;
+    std::vector<double> wavelengths = generateArray(340, 830, step_size, false);
     std::vector<double> reflectances;
     std::map<int, double> spectral_reflectance;
 
@@ -248,7 +287,7 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
         double x =  xFit_1931(nm);
         double y =  yFit_1931(nm);
         double z =  zFit_1931(nm);
-        double XYZ [3] = {x, y, z};
+
 
         total[0] += x*reflectance;
         total[1] += y*reflectance;
@@ -257,6 +296,8 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
         //std::cout << "Total: " << total[0] << ", " << total[1] << ", " << total[2] << std::endl;
 
     }
+
+
 
     std::vector<double> sRGB0 = XYZ_to_sRGB(total, step_size);
     std::vector<double> sRGB1 = Get_RGB(wavelengths, reflectances, step_size);
@@ -306,14 +347,63 @@ bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
     std::map<int, double> spectral_reflectance = CalculateReflectanceRow(cm, ch, bm, bh, t);
+    int stepSize = 5;  // Example value
+    double K = 1;     // For our case
 
-    //write
+    double Nd = CalculateNd(stepSize, spectral_reflectance);
+
+    double X = CalculateX(stepSize, K, Nd, spectral_reflectance);
+    double Y = CalculateY(stepSize, K, Nd, spectral_reflectance);
+    double Z = CalculateZ(stepSize, K, Nd, spectral_reflectance);
+
+    std::cout << "X: " << X << "\n";
+    std::cout << "Y: " << Y << "\n";
+    std::cout << "Z: " << Z << "\n";
+    /* 0.9531874 -0.0265906  0.0238731
+	-0.0382467  1.0288406  0.0094060
+	 0.0026068 -0.0030332  1.0892565
+	 */
+     // Conversion to D65 Illuminant
+    double m[3][3] = {
+        {0.9531874, -0.0265906, 0.0238731},
+        {-0.0382467, 1.0288406, 0.0094060},
+        {0.0026068, -0.0030332, 1.0892565}
+    };
+
+    double X_d65 = m[0][0] * X + m[0][1] * Y + m[0][2] * Z;
+    double Y_d65 = m[1][0] * X + m[1][1] * Y + m[1][2] * Z;
+    double Z_d65 = m[2][0] * X + m[2][1] * Y + m[2][2] * Z;
+
+    // XYZ to sRGB conversion
+    double sRGBMatrix[3][3] = {
+        {3.2406, -1.5372, -0.4986},
+        {-0.9689, 1.8758, 0.0415},
+        {0.0557, -0.2040, 1.0570}
+    };
+
+    double R_linear = sRGBMatrix[0][0] * X_d65 + sRGBMatrix[0][1] * Y_d65 + sRGBMatrix[0][2] * Z_d65;
+    double G_linear = sRGBMatrix[1][0] * X_d65 + sRGBMatrix[1][1] * Y_d65 + sRGBMatrix[1][2] * Z_d65;
+    double B_linear = sRGBMatrix[2][0] * X_d65 + sRGBMatrix[2][1] * Y_d65 + sRGBMatrix[2][2] * Z_d65;
+
+    // Convert linear RGB values to gamma-corrected sRGB values
+    double R = (R_linear <= 0.0031308) ? 12.92 * R_linear : 1.055 * pow(R_linear, 1.0 / 2.4) - 0.055;
+    double G = (G_linear <= 0.0031308) ? 12.92 * G_linear : 1.055 * pow(G_linear, 1.0 / 2.4) - 0.055;
+    double B = (B_linear <= 0.0031308) ? 12.92 * B_linear : 1.055 * pow(B_linear, 1.0 / 2.4) - 0.055;
+    //scale 0 to 255
+    R = R * 255;
+    G = G * 255;
+    B = B * 255;
+
+    std::cout << "R: " << R << "\n";
+    std::cout << "G: " << G << "\n";
+    std::cout << "B: " << B << "\n";
     outputFile << "nm" << "," << "reflectance";
-
+    std::cout << "nm" << "," << "reflectance" << std::endl;
 	//for each
     for (auto it = spectral_reflectance.begin(); it != spectral_reflectance.end(); ++it) {
         //outputFile << it->first << "," << it->second;
         outputFile << it->first << "," << it->second;
+        std::cout << it->first << "," << it->second << std::endl;
     }
 
     //write reflectance values to csv
