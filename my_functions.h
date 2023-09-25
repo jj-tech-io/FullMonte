@@ -658,6 +658,8 @@ const std::map<double, double> D65_ILLUMINANT = {
 {829, 60.0253},
 {830, 60.3125}
 };
+//function to interpolate the D65 illuminant for a given wavelength
+double getD65Value(double wavelength);
 double getDeoxyHbValue(int wavelength);
 double getOxyHbValue(int wavelength);
 double RFresnel(double, double, double);

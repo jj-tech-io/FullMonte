@@ -4,7 +4,29 @@
 #include "my_functions.h"
 
 
+double getD65Value(double wavelength)
+{
+    // Ensure wavelength is within the provided range
+    if (wavelength < D65_ILLUMINANT.begin()->first || wavelength > D65_ILLUMINANT.rbegin()->first) {
+        std::cerr << "Wavelength is outside of known range. Result might not be accurate." << std::endl;
+        return -1.0; // or some other indicator value
+    }
 
+    // If the exact value is in the map, return it
+    if (D65_ILLUMINANT.count(wavelength)) {
+        return D65_ILLUMINANT.at(wavelength)/ 107.689;
+    }
+
+    // Otherwise, find the two surrounding known wavelengths
+    auto upper = D65_ILLUMINANT.upper_bound(wavelength); // First value greater than the wavelength
+    auto lower = std::prev(upper); // Value less than the wavelength
+
+    // Linear interpolation formula: 
+    // y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
+    double interpolatedValue = lower->second + (wavelength - lower->first) * (upper->second - lower->second) / (upper->first - lower->first);
+
+    return interpolatedValue/ 107.689 ;
+}
 
 double getDeoxyHbValue(int wavelength)
 {
