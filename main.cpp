@@ -256,7 +256,7 @@ double CalculateNd(int stepSize, std::map<int, double> reflectance) {
 
 std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
-    int step_size = 10;
+    int step_size = 5;
     std::vector<double> wavelengths = generateArray(380, 790, step_size, false);
     std::map<int, double> spectral_reflectance;
 
@@ -270,18 +270,10 @@ std::map<int, double> CalculateReflectanceRow(double Cm, double Ch, double Bm, d
         auto coefficients = calculate_absorption_coefficient(nm);
         double gammaOxy = coefficients.first;
         double gammaDeoxy = coefficients.second;
-        //double A = Bh*gammaOxy + (1 - Bh)*gammaDeoxy;
-
-        int wl = static_cast<int>(nm);
-        //using 
         double epidermis = Cm * (Bm * alpha_em + (1 - Bm) * alpha_pm) + (1 - Cm) * alpha_base;
-        //alpha_derm_total = Ch*(Bh*alpha_oxy + (1-Bh)*alpha_deoxy) + (1-Ch)*self.get_alpha_base(wl)
         double dermis = Ch *(Bh*gammaOxy + (1 - Bh)*gammaDeoxy) + (1 - Ch)*alpha_base;
-        //double dermis2 = Ch * (Bh * gammaOxy + (1 - Bh) * gemmaDeoxy) + (1 - Ch) * alpha_base;
-        //double dermis = Ch * (A + (1 - Ch) * alpha_base);
         double scattering_epidermis = 14.74 * std::pow(nm, -0.22) + 2.22 * std::pow(10, 11) * std::pow(nm, -4.0);
         double scattering_dermis = 0.75 * scattering_epidermis;
-        // Call MonteCarlo function here and store reflectance values
         double reflectance = MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, T,nm);
         spectral_reflectance[nm] = reflectance;
         index++;
@@ -309,63 +301,62 @@ bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
     std::map<int, double> spectral_reflectance = CalculateReflectanceRow(cm, ch, bm, bh, t);
-    int stepSize = 10;  // Example value
-    double K = 1;     // For our case
+
+    int stepSize = 5;  // Example value
+    double K = 100;     // For our case
 
     double Nd = CalculateNd(stepSize, spectral_reflectance);
 
     double X = CalculateX(stepSize, K, Nd, spectral_reflectance);
     double Y = CalculateY(stepSize, K, Nd, spectral_reflectance);
     double Z = CalculateZ(stepSize, K, Nd, spectral_reflectance);
+    std::vector<double> XYZ = { X, Y, Z };
+    std::vector<double> sRGB = XYZ_to_sRGB(XYZ, stepSize);
+    std::cout << "sRGB: " << sRGB[0] << ", " << sRGB[1] << ", " << sRGB[2] << std::endl;
 
     /* 0.9531874 -0.0265906  0.0238731
     -0.0382467  1.0288406  0.0094060
      0.0026068 -0.0030332  1.0892565
      */
      // Conversion to D65 Illuminant
-    //double m[3][3] = {
-    //    {0.9531874, -0.0265906, 0.0238731},
-    //    {-0.0382467, 1.0288406, 0.0094060},
-    //    {0.0026068, -0.0030332, 1.0892565}
-    //};
+  //  double m[3][3] = {
+  //      {0.9531874, -0.0265906, 0.0238731},
+  //      {-0.0382467, 1.0288406, 0.0094060},
+  //      {0.0026068, -0.0030332, 1.0892565}
+  //  };
 
-    //double X_d65 = m[0][0] * X + m[0][1] * Y + m[0][2] * Z;
-    //double Y_d65 = m[1][0] * X + m[1][1] * Y + m[1][2] * Z;
-    //double Z_d65 = m[2][0] * X + m[2][1] * Y + m[2][2] * Z;
+  //  double X_d65 = m[0][0] * X + m[0][1] * Y + m[0][2] * Z;
+  //  double Y_d65 = m[1][0] * X + m[1][1] * Y + m[1][2] * Z;
+  //  double Z_d65 = m[2][0] * X + m[2][1] * Y + m[2][2] * Z;
 
-    // XYZ to sRGB conversion
-    double sRGBMatrix[3][3] = {
-        {3.2406, -1.5372, -0.4986},
-        {-0.9689, 1.8758, 0.0415},
-        {0.0557, -0.2040, 1.0570}
-    };
+  //  // XYZ to sRGB conversion
+  //  double sRGBMatrix[3][3] = {
+  //      {3.2406, -1.5372, -0.4986},
+  //      {-0.9689, 1.8758, 0.0415},
+  //      {0.0557, -0.2040, 1.0570}
+  //  };
 
-    //double R_linear = sRGBMatrix[0][0] * X_d65 + sRGBMatrix[0][1] * Y_d65 + sRGBMatrix[0][2] * Z_d65;
-    //double G_linear = sRGBMatrix[1][0] * X_d65 + sRGBMatrix[1][1] * Y_d65 + sRGBMatrix[1][2] * Z_d65;
-    //double B_linear = sRGBMatrix[2][0] * X_d65 + sRGBMatrix[2][1] * Y_d65 + sRGBMatrix[2][2] * Z_d65;
-    double R = sRGBMatrix[0][0] * X + sRGBMatrix[0][1] * Y + sRGBMatrix[0][2] * Z;
-    double G = sRGBMatrix[1][0] * X + sRGBMatrix[1][1] * Y + sRGBMatrix[1][2] * Z;
-    double B = sRGBMatrix[2][0] * X + sRGBMatrix[2][1] * Y + sRGBMatrix[2][2] * Z;
+  //  //double R_linear = sRGBMatrix[0][0] * X_d65 + sRGBMatrix[0][1] * Y_d65 + sRGBMatrix[0][2] * Z_d65;
+  //  //double G_linear = sRGBMatrix[1][0] * X_d65 + sRGBMatrix[1][1] * Y_d65 + sRGBMatrix[1][2] * Z_d65;
+  //  //double B_linear = sRGBMatrix[2][0] * X_d65 + sRGBMatrix[2][1] * Y_d65 + sRGBMatrix[2][2] * Z_d65;
+  //  double R = sRGBMatrix[0][0] * X + sRGBMatrix[0][1] * Y + sRGBMatrix[0][2] * Z;
+  //  double G = sRGBMatrix[1][0] * X + sRGBMatrix[1][1] * Y + sRGBMatrix[1][2] * Z;
+  //  double B = sRGBMatrix[2][0] * X + sRGBMatrix[2][1] * Y + sRGBMatrix[2][2] * Z;
 
-    // Convert linear RGB values to gamma-corrected sRGB values
-    //double R = (R_linear <= 0.0031308) ? 12.92 * R_linear : 1.055 * pow(R_linear, 1.0 / 2.4) - 0.055;
-    //double G = (G_linear <= 0.0031308) ? 12.92 * G_linear : 1.055 * pow(G_linear, 1.0 / 2.4) - 0.055;
-    //double B = (B_linear <= 0.0031308) ? 12.92 * B_linear : 1.055 * pow(B_linear, 1.0 / 2.4) - 0.055;
-    //double R = gamma_correction(R_linear);
-    //double G = gamma_correction(G_linear);
-    //double B = gamma_correction(B_linear);
-    //scale 0 to 255
-    R = R * 255;
-    G = G * 255;
-    B = B * 255;
+  //  // Convert linear RGB values to gamma-corrected sRGB values
+  //  //double R = (R_linear <= 0.0031308) ? 12.92 * R_linear : 1.055 * pow(R_linear, 1.0 / 2.4) - 0.055;
+  //  //double G = (G_linear <= 0.0031308) ? 12.92 * G_linear : 1.055 * pow(G_linear, 1.0 / 2.4) - 0.055;
+  //  //double B = (B_linear <= 0.0031308) ? 12.92 * B_linear : 1.055 * pow(B_linear, 1.0 / 2.4) - 0.055;
+	 //R = gamma_correction(R);
+	 //G = gamma_correction(G);
+	 //B = gamma_correction(B);
+  //  //scale 0 to 255
+  //  R = R * 255.0;
+  //  G = G * 255.0;
+  //  B = B * 255.0;
 
-    mtx.lock();
-    outputFile << cm << "," << ch << "," << bm << "," << bh << "," << t << "," << R << "," << G << "," << B << "\n";
-    
-    mtx.unlock();
-
-    std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << "sR" << R << ", sG" << G << ", sB" << B <<
-        " \n" << std::endl;
+    std::lock_guard<std::mutex> lock(mtx);
+    outputFile << cm << "," << ch << "," << bm << "," << bh << "," << t << "," << sRGB[0] << "," <<  sRGB[1] << "," << sRGB[2] << "\n";
 }
 
 void worker() {
@@ -412,27 +403,28 @@ int main() {
 
     outputFile << "Cm,Ch,Bm,Bh,T,sR,sG,sB\n";
 
-    const int numThreads = std::thread::hardware_concurrency();
-    std::vector<std::thread> workers;
+    //const int numThreads = std::thread::hardware_concurrency();
+    //std::vector<std::thread> workers;
 
-    for (int i = 0; i < numThreads; i++) {
-        workers.push_back(std::thread(worker));
-    }
+    //for (int i = 0; i < numThreads; i++) {
+    //    workers.push_back(std::thread(worker));
+    //}
 
     for (auto cm : CmValues) {
         for (auto ch : ChValues) {
             for (auto bm : BmValues) {
                 for (auto bh : BhValues) {
                     for (auto t : TValues) {
-                        auto task = [&, cm, ch, bm, bh, t]() {
-                            ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
-                            };
+                        ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
+                        //auto task = [&, cm, ch, bm, bh, t]() {
+                        //    ProcessAndWrite(outputFile, cm, ch, bm, bh, t);
+                        //    };
 
-                        {
-                            std::unique_lock<std::mutex> lock(task_mtx);
-                            tasks.push(task);
-                            cv.notify_one();
-                        }
+                        //{
+                        //    std::unique_lock<std::mutex> lock(task_mtx);
+                        //    tasks.push(task);
+                        //    cv.notify_one();
+                        //}
                     }
                 }
             }
