@@ -1,10 +1,10 @@
 ﻿  main.cpp
 C:\joel_cpp\FullMonte\FullMonte\main.cpp(34,15): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
-C:\joel_cpp\FullMonte\FullMonte\main.cpp(196,23): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\joel_cpp\FullMonte\FullMonte\main.cpp(273,30): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\joel_cpp\FullMonte\FullMonte\main.cpp(197,23): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\joel_cpp\FullMonte\FullMonte\main.cpp(266,30): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
   Generating code
-  5 of 814 functions ( 0.6%) were compiled, the rest were copied from previous compilation.
+  4 of 768 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    4 functions had inline decision re-evaluated but remain unchanged
+    3 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   FullMonte.vcxproj -> C:\joel_cpp\FullMonte\x64\Release\FullMonte.exe
