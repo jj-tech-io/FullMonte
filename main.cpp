@@ -17,7 +17,7 @@
 
 
 double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_mus, double epidermis_thickness) {
-    int Nphotons = 10000;
+    int Nphotons = 100000;
     //double ReflBin[Nbinsp1];
 
     double epi_albedo = epi_mus / (epi_mus + epi_mua);
@@ -347,7 +347,7 @@ int main() {
     ////append values to vectors
     //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    std::string outputFilename = "output_test_multi.csv";
+    std::string outputFilename = "output_test_multiq.csv";
     std::ofstream outputFile(outputFilename);
 
     //start timer
