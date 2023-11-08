@@ -1,5 +1,9 @@
 #include "my_functions.h"
+#include <random> 
 
+std::random_device rd; 
+std::mt19937 gen(rd()); 
+std::uniform_real_distribution<> dis(0.0, 1.0);
 
 #define Nbins 1000
 #define Nbinsp1 1001
@@ -17,7 +21,7 @@
 
 
 double MonteCarlo(double epi_mua, double epi_mus, double derm_mua, double derm_mus, double epidermis_thickness) {
-    int Nphotons = 100000;
+    int Nphotons = 10000;
     //double ReflBin[Nbinsp1];
 
     double epi_albedo = epi_mus / (epi_mus + epi_mua);
@@ -208,6 +212,7 @@ std::vector<double> generateArray(double a, double b, double s, bool print_resul
     }
     return result;
 }
+    
 
 std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, double Bh, double T) {
     // 380 to 780
@@ -254,30 +259,29 @@ std::vector<double> CalculateReflectanceRow(double Cm, double Ch, double Bm, dou
         total[2] += z*reflectance;
         index++;
         //std::cout << "Total: " << total[0] << ", " << total[1] << ", " << total[2] << std::endl;
-
     }
 
     std::vector<double> sRGB0 = XYZ_to_sRGB(total, step_size);
-    std::vector<double> sRGB1 = Get_RGB(wavelengths, reflectances, step_size);
-    std::vector<double> sRGB2 = XYZ_to_sRGB(total, step_size);
     std::vector<double> row;
-    row.push_back(Cm);
-    row.push_back(Ch);
-    row.push_back(Bm);
-    row.push_back(Bh);
-    row.push_back(T);
+    if (!(sRGB0[0] > 255 || sRGB0[1] > 255 || sRGB0[2] > 255)) {
+        row.push_back(Cm);
+        row.push_back(Ch);
+        row.push_back(Bm);
+        row.push_back(Bh);
+        row.push_back(T);
+        row.push_back(sRGB0[0]);
+        row.push_back(sRGB0[1]);
+        row.push_back(sRGB0[2]);
+        total.clear();
+        sRGB0.clear();
+        return row;
+    }
+    else {
+        row.clear();
+        return row;
+    }
 
-    row.push_back(sRGB0[0]);
-    row.push_back(sRGB0[1]);
-    row.push_back(sRGB0[2]);
 
-    // row.insert(row.end(), sRGB.begin(), sRGB.end());
-    //free up memory
-    total.clear();
-    sRGB0.clear();
-    sRGB1.clear();
-    sRGB2.clear();
-    return row;
 }
 std::vector<double> generateSequence(double start, double end, int numSamples, double root) {
     std::vector<double> values;
@@ -305,9 +309,12 @@ bool finished = false;
 
 void ProcessAndWrite(std::ofstream& outputFile, double cm, double ch, double bm, double bh, double t) {
     std::vector<double> row = CalculateReflectanceRow(cm, ch, bm, bh, t);
+    if (row.empty()) {
+		return;
+	}
     mtx.lock();
     WriteRowToCSV(outputFile, row);
-    std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << " \n" << std::endl;
+    //std::cout << "cm: " << cm << ", ch: " << ch << ", bm: " << bm << ", bh: " << bh << ", t: " << t << " \n" << std::endl;
     mtx.unlock();
     row.clear();
 
@@ -333,21 +340,14 @@ void worker() {
 }
 int main() {
     double step_size = 5;
-    int numSamples = 45;
-    //Cm = [0.002, 0.0135, 0.0425, 0.1, 0.185, 0.32, 0.5]
-    //Ch = [0.003, 0.02, 0.07, 0.16, 0.32]
-    //Bm = [0.01, 0.5, 1.0]
-    //Bh = [0.75]
-    //T = [0.25]
-    std::vector<double> CmValues = generateSequence(0.001, 0.5, numSamples, 3);
-    std::vector<double> ChValues = generateSequence(0.001, 0.32, numSamples, 4);
-    std::vector<double> BmValues = {0.5};
-    std::vector<double> BhValues = {0.75};
-    std::vector<double> TValues {0.25};
-    ////append values to vectors
-    //CmValues.insert(CmValues.end(), CmValues2.begin(), CmValues2.end());
+    int numSamples = 7;
+    std::vector<double> CmValues = generateSequence(0.001, 1.0, numSamples, 3);
+    std::vector<double> ChValues = generateSequence(0.001, 1.0, numSamples, 4);
+    std::vector<double> BmValues = generateSequence(0.0, 1.0, numSamples, 2);
+    std::vector<double> BhValues = generateSequence(0.0, 1.0, numSamples, 1);
+    std::vector<double> TValues = generateSequence(0.01, 0.25, numSamples, 1);
     std::cout << "size of cartesian product: " << CmValues.size() * ChValues.size() * BmValues.size() * BhValues.size() * TValues.size() << std::endl;
-    std::string outputFilename = "output_test_multiq.csv";
+    std::string outputFilename = "small_lut.csv";
     std::ofstream outputFile(outputFilename);
 
     //start timer

@@ -9,7 +9,7 @@
 double getDeoxyHbValue(int wavelength)
 {
     // Convert the vectors to maps for efficient access:
-    std::map<int, double> deoxy_hb_map(deoxy_hb_3.begin(), deoxy_hb_3.end());
+    std::map<int, double> deoxy_hb_map(deoxy_hb.begin(), deoxy_hb.end());
     if (deoxy_hb_map.find(wavelength) != deoxy_hb_map.end()) {
         return deoxy_hb_map[wavelength];
 
@@ -21,7 +21,7 @@ double getDeoxyHbValue(int wavelength)
 
 double getOxyHbValue(int wavelength)
 {
-    std::map<int, double> oxy_hb_map(oxy_hb_3.begin(), oxy_hb_3.end());
+    std::map<int, double> oxy_hb_map(oxy_hb.begin(), oxy_hb.end());
 
     if (oxy_hb_map.find(wavelength) != oxy_hb_map.end()) {
         return oxy_hb_map[wavelength];
@@ -159,22 +159,7 @@ std::vector<double> Get_RGB(std::vector<double> wavelengths, std::vector<double>
     return sRGB;
 }
 
-void write_csv(const std::string filename, const std::vector<std::vector<double>>& data) {
-    std::ofstream myFile(filename);
-    // Write headers
-    myFile << "Cm,Ch,Bm,Bh,T,R,G,B\n";
-    //loop through data and print all rows
-    for (size_t i = 0; i < data.size(); i++) {
-        for (size_t j = 0; j < data[i].size(); j++) {
-            myFile << data[i][j];
-            if (j != data[i].size() - 1) {
-                myFile << ",";
-            }
-        }
-        myFile << "\n";
-    }
-    myFile.close();
-}
+
 void WriteRowToCSV(std::ofstream& file, const std::vector<double>& row) {
     for (size_t i = 0; i < row.size(); ++i) {
         file << row[i];
